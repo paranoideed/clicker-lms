@@ -1,15 +1,14 @@
-# pip install - r requirements.txt
-
+# main.py
+from pathlib import Path
 from login.login import Login
 from requestAssessment.assessor import Assessor
 
-# Press the green button in the gutter to run the script.
 if __name__ == '__main__':
-    # print_hi('PyCharm')
-    logining_result = Login()
-    # print(logining_result.get_token())
-    assessor_result = Assessor(logining_result.get_token(), logining_result.get_refresh())
-    assessor_result.set_params()
-    assessor_result.send_requests()
+    auth = Login()  # читает creds.json
+    token = auth.get_token()
+    refresh = auth.get_refresh()
+    if not token or not refresh:
+        raise RuntimeError("Missing cookies 'token'/'refresh' after login")
 
-    # pass
+    assessor = Assessor(token, refresh, Path('creds.json'))
+    assessor.send_requests()

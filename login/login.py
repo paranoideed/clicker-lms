@@ -1,62 +1,38 @@
+# login/login.py
 import json
 from pathlib import Path
 from requests import post
 
-from pprint import pprint
-
 cr = Path('creds.json')
 
-
 class Login:
+    def __init__(self, creds_path: Path = cr):
+        self.creds_path = creds_path
+        self.creds = self._get_creds()
+        self.response = self._authorize()
+        if self.response.status_code != 200:
+            raise RuntimeError(
+                f'Login failed: status={self.response.status_code}, body={self.response.text}'
+            )
 
-    def __init__(self, creds=cr):
-        self.cr = creds
-        self.creds = self.get_creds()
-        while True:
-            self.response = self.authorize()
-            if self.response.status_code == 200:
-                print('logining successful\n')
-                break
-            else:
-                print(f'logining failed!!!!!\n'
-                      f'status_code: {self.response.status_code}\n'
-                      f'response body: {self.response.json()}')
-                input('check your login and password in creds.json or be careful inputting them\n'
-                      'press Enter to continue')
-                self.creds = self.get_creds()
+    def _get_creds(self):
+        with open(self.creds_path, 'r', encoding='utf-8') as f:
+            data = json.load(f)
+        login = data.get("login")
+        password = data.get("password")
+        if not login or not password:
+            raise ValueError("Missing 'login' or 'password' in creds.json")
+        return {"login": login, "password": password}
 
-    def get_creds(self):
-        with open(self.cr, 'r') as file:
-            creds = json.load(file)
-        if creds["login"]:
-            login = creds["login"]
-        else:
-            login = input('input login: ')
-        if creds["password"]:
-            password = creds["password"]
-        else:
-            password = input('input password: ')
-        return {
-            'login': login,
-            'password': password,
-        }
-
-    def authorize(self):
-        res = post(
+    def _authorize(self):
+        return post(
             url='https://green-lms.app/api/login',
             json=self.creds,
             headers={"Content-Type": "application/json"},
         )
-        return res
 
     def get_token(self):
-        return self.response.cookies.get_dict()['token']
+        return self.response.cookies.get_dict().get('token')
 
     def get_refresh(self):
-        return self.response.cookies.get_dict()['refresh']
-
-
-# a = Login()
-# print(a.get_token())
-# print(a.get_refresh())
-
+        return self.response.cookies.get_dict().get('refresh')

@@ -1,13 +1,28 @@
+# requestAssessment/assessor.py
 import time
-
+import json
+from pathlib import Path
+from typing import Any, Dict, List, Optional
 from requests import post
 
+cr = Path('creds.json')
+
+def _load_creds(path: Path) -> Dict[str, Any]:
+    with open(path, 'r', encoding='utf-8') as f:
+        return json.load(f)
 
 class Assessor:
-    def __init__(self, token, refresh):
-        self.long_pause = 10
-        self.short_pause = 2
-        self.retries = 60
+    def __init__(self, token: str, refresh: str, creds_path: Path = cr):
+        data = _load_creds(creds_path)
+        cfg = (data.get("assessor") or {})
+
+        # Значения по умолчанию
+        self.retries: int = int(cfg.get("retries", ))
+        self.short_pause: int = int(cfg.get("short_pause_sec", 2))
+        self.long_pause: int = int(cfg.get("long_pause_sec", 10))
+        self.pools: List[int] = list(cfg.get("pools", [8]))
+        self.fos_id: str = str(cfg.get("fos_id", "10"))
+
         self.token = token
         self.refresh = refresh
         self.response = None
@@ -15,64 +30,33 @@ class Assessor:
     def ass_request(self):
         res = post(
             url='https://green-lms.app/api/assessments/request',
-            json={"pools": [8]},
-            headers={"fos-id": "10",
-                     "Content-Type": "application/json",
-                     },
-            cookies={"refresh": self.refresh,
-                     "token": self.token},
+            json={"pools": self.pools},
+            headers={
+                "fos-id": self.fos_id,
+                "Content-Type": "application/json",
+            },
+            cookies={
+                "refresh": self.refresh,
+                "token": self.token
+            },
         )
-        # print(res.json())
         self.response = res
-        print(f'ass_request result: {res.json()}')
+        try:
+            print(f'ass_request result: {res.status_code} | {res.json()}')
+        except Exception:
+            print(f'ass_request result: {res.status_code} | {res.text}')
         return res
 
     def send_requests(self):
+        # первый запрос
         self.ass_request()
-        while self.response.status_code in (404, 200) and self.retries > 0:
-            print(f'retries left: {self.retries}')
-            if self.response.status_code == 404:
-                time.sleep(self.short_pause * 60)
-            else:
-                time.sleep(self.long_pause * 60)
+        attempts_left = self.retries
+
+        while self.response is not None and self.response.status_code in (200, 404) and attempts_left > 0:
+            # print(f'retries left: {attempts_left}')
+            pause = self.short_pause if self.response.status_code == 404 else self.long_pause
+            time.sleep(pause)
             self.ass_request()
-            self.retries -= 1
+            attempts_left -= 1
+
         print('Program gets over')
-
-    def set_params(self):
-        flag = True
-        while flag:
-            retries = input('\nHow many times do you want to click on "Request" button?\nInput '
-                            'number or press Enter if default 60 times are Ok: ')
-            try:
-                self.retries = int(retries) if retries else self.retries
-                flag = False
-            except ValueError:
-                print('Wrong input')
-
-        print(self.retries)
-        flag = True
-        while flag:
-            short_pause = input(
-                '\nHow many minutes do you want to wait until \nclick on "Request" button if "There\'s '
-                'no teams"?\nInput '
-                'number or press Enter if default 2 minutes are Ok: ')
-            try:
-                self.short_pause = int(short_pause) if short_pause else self.short_pause
-                flag = False
-            except ValueError:
-                print('Wrong input')
-        print(self.short_pause)
-
-        flag = True
-        while flag:
-            long_pause = input('how many minutes do you want to wait until \nclick on "Request" button if '
-                               'someone got found"?\nInput '
-                               'number or press Enter if default 10 minutes are Ok: ')
-            try:
-                self.long_pause = int(long_pause) if long_pause else self.long_pause
-                flag = False
-            except ValueError:
-                print('Wrong input')
-        print(self.long_pause)
-

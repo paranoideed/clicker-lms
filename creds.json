@@ -1,4 +1,11 @@
 {
-  "login": "",
-  "password": ""
+  "login": "11",
+  "password": "11",
+  "assessor": {
+    "retries": 1000000,
+    "short_pause_sec": 1,
+    "long_pause_sec": 1,
+    "pools": [8],
+    "fos_id": "10"
+  }
 }
