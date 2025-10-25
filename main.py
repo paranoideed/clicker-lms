@@ -10,5 +10,5 @@ if __name__ == '__main__':
     if not token or not refresh:
         raise RuntimeError("Missing cookies 'token'/'refresh' after login")
 
-    assessor = Assessor(token, refresh, Path('creds.json'))
+    assessor = Assessor(token, refresh, Path('config.json'))
     assessor.send_requests()

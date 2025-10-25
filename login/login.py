@@ -3,7 +3,7 @@ import json
 from pathlib import Path
 from requests import post
 
-cr = Path('creds.json')
+cr = Path('config.json')
 
 class Login:
     def __init__(self, creds_path: Path = cr):
